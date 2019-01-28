@@ -5,6 +5,8 @@ $(document).ready(function(){
 	var canvasHeight = canvas.height();
 
 	var hide = false;
+	var lastTimestamp = 0, fps = 60, interval = 1000 / fps;
+
 	var key = new Object();
 	var player = new Object();
 	var star = new Array();
@@ -20,7 +22,8 @@ $(document).ready(function(){
 	var rain = new Array();
 	var pet = new Array();
 	var pt = new Array();
-	var storyTime = 0, storyMotion = 0, motionKing = 0, motionAngel = 0, isEnding = false;
+	var storyTime = 0, storyMotion = 0, motionKing = 0, motionAngel = 0;
+	var isInrto = true, isOpening = false, isPlaying = false, isEnding = false;
 	
 	var gTable = new Array();
 	for( var i = 0; i <= 25; i++ ){
@@ -175,7 +178,7 @@ $(document).ready(function(){
 				hide = !hide;
 				context.fillStyle = "rgb(255,255,255)";
 				context.fillRect(0, 0, 720, 540);
-				animate();
+				window.requestAnimationFrame(animate);
 				break;
 			case 73:
 				if( menu.type == 0 && !sinventory[0].isOpen && inventory[0].type == 0 ){
@@ -227,18 +230,24 @@ $(document).ready(function(){
 		}
 	};
 		
-	function intro(){
+	function intro(timestamp){
+		if (!isInrto) return;
+
+		window.requestAnimationFrame(intro);
+		if (timestamp - lastTimestamp < interval) return;
+		lastTimestamp = timestamp;
+
 		context.clearRect( 0, 0, canvasWidth, canvasHeight );
 		
 		var chk = moveIntroMenu( menu, key );
 		if( chk != 0 ){
 			init( chk );
+			isInrto = false;
 			return;
 		}
 		
 		printIntroMenu( menu, img, context );
-		
-		setTimeout(intro, 33);
+
 	};
 	
 	function init( loadType ){
@@ -261,16 +270,24 @@ $(document).ready(function(){
 		
 		if( loadType == 1 ){
 			loadFile( db, player, npc, pet, inventory, sinventory, kinventory, fruitInfo, gTable, clock );
-			animate();
+			isPlaying = true;
+			window.requestAnimationFrame(animate);
 		}
 		else{
-			animateOpening();
+			isOpening = true;
+			window.requestAnimationFrame(animateOpening);
 			deleteDB( db );
 			initDB( db );
 		}
 	};
 	
-	function animateOpening(){
+	function animateOpening(timestamp){
+		if (!isOpening) return;
+
+		window.requestAnimationFrame(animateOpening);
+		if (timestamp - lastTimestamp < interval) return;
+		lastTimestamp = timestamp;
+
 		context.clearRect( 0, 0, canvasWidth, canvasHeight );
 		
 		if( menu.type == 0 ) storyTime++;
@@ -313,15 +330,21 @@ $(document).ready(function(){
 			storyTime = 0;
 			textbox.time = 0;
 			for( var i = 1; i <= 360; i++ ) makeParticle( pt, player.x, player.y, Math.random()+1, 5 );
-			animate();
+
+			isOpening = false;
+			isPlaying = true;
+			window.requestAnimationFrame(animate);
 			return;
 		}
-		
-		setTimeout( animateOpening, 33 );
 	};
 	
-	function animateEnding(){
-		isEnding = true;
+	function animateEnding(timestamp){
+		if (!isEnding) return;
+
+		window.requestAnimationFrame(animateEnding);
+		if (timestamp - lastTimestamp < interval) return;
+		lastTimestamp = timestamp;
+
 		context.clearRect( 0, 0, canvasWidth, canvasHeight );
 		
 		if( menu.type == 0 ) storyTime++;
@@ -378,12 +401,16 @@ $(document).ready(function(){
 			context.fillStyle = "rgba(0, 0, 0, " + (storyTime-1150)/150 + ")";
 			context.fillRect( 0, 0, 720, 540 );
 		}
-		
-		setTimeout( animateEnding, 33 );
 	};
 	
-	function animate(){
-		if( hide ) return;
+	function animate(timestamp){
+		if (hide || !isPlaying) return;
+
+		// Fix frame
+		window.requestAnimationFrame(animate);
+		if (timestamp - lastTimestamp < interval) return;
+		lastTimestamp = timestamp;
+		
 		context.clearRect( 0, 0, canvasWidth, canvasHeight );
 		
 		moveClock( clock, player, npc, gTable, inventory, sinventory, kinventory, fruitInfo, rain, pet, house, textbox, db );
@@ -398,7 +425,9 @@ $(document).ready(function(){
 			else if( inventory[0].isOpen ) moveInventory( inventory, player, npc, pet, fruitInfo, textbox, clock.season, key );
 			else{
 				if( moveMenu( menu, player, npc, pet, inventory, sinventory, kinventory, textbox, clock, key ) == -1 ){
-					animateEnding();
+					isPlaying = false;
+					isEnding = true;
+					window.requestAnimationFrame(animateEnding);
 					return;
 				}
 			}
@@ -435,12 +464,10 @@ $(document).ready(function(){
 		context.font = "14px helvetica";
 		context.fillStyle = "rgb(255,255,255)";
 		context.fillText( player.x + ", " + player.y, 10, 15 );
-		
-		setTimeout(animate, 33);
 	};
 	
 	initMenu( menu, 0 );
-	intro();
+	window.requestAnimationFrame(intro);
 });
 
 
